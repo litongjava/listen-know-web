@@ -2,7 +2,7 @@ import Vue from 'vue'
 import VueRouter from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 
-Vue.use(VueRouter)
+Vue.use(VueRouter);
 
 const routes = [
   {
@@ -24,11 +24,16 @@ const routes = [
     path: "/RealtimeSpeechRecognition",
     name: "RealtimeSpeechRecognition",
     component: () => import('../views/RealtimeSpeechRecognitionView')
-  }
-]
+  },
+  {
+    path: "/AudioSave",
+    name: "AudioSave",
+    component: () => import('../views/AudioSaveView.vue')
+  },
+];
 
 const router = new VueRouter({
   routes
-})
+});
 
 export default router
