@@ -37,7 +37,7 @@ export default {
         // 发送开始信号
         this.startName = Date.now();
         this.wsConnection.send(JSON.stringify({
-          "name": startName + ".wav",
+          "name": this.startName + ".wav",
           "signal": "start",
           "nbest": 1
         }));
