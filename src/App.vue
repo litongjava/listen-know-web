@@ -9,7 +9,7 @@
     |
     <router-link to="/RealtimeSpeechRecognition">RealtimeSpeechRecognition</router-link>
     |
-    <router-link to="/AudioSave">AudioSave</router-link>
+    <router-link to="/RealtimeSpeechSave">RealtimeSpeechSave</router-link>
     |
     <router-link to="/Recorder">Recorder</router-link>
   </nav>

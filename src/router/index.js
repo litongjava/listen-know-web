@@ -26,9 +26,9 @@ const routes = [
     component: () => import('../views/RealtimeSpeechRecognitionView')
   },
   {
-    path: "/AudioSave",
-    name: "AudioSave",
-    component: () => import('../views/AudioSaveView.vue')
+    path: "/RealtimeSpeechSave",
+    name: "RealtimeSpeechSave",
+    component: () => import('../views/RealtimeSpeechSaveView.vue')
   },
   {
     path:"/Recorder",

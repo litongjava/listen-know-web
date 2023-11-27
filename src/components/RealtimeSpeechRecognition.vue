@@ -5,7 +5,7 @@
   <button @click="stopRecording">结束</button>
   <button @click="getDefaultSampleRate">getDefaultSampleRate</button>
   <div v-for="result in results" :key="result.id">
-    {{ result.sentence }}
+    {{ result }}
   </div>
 
   <br/>
@@ -18,8 +18,8 @@ export default {
   name: "RealtimeSpeechRecognition",
   data() {
     return {
-      //serverUrl: 'ws://192.168.3.7:8090/paddlespeech/asr/streaming',
-      serverUrl: 'ws://192.168.3.7:8090/paddlespeech/streaming/save',
+      serverUrl: 'ws://192.168.3.7:8090/paddlespeech/asr/streaming',
+      // serverUrl: 'ws://192.168.3.7:8090/paddlespeech/streaming/save',
       startName: null,
       wsConnection: null,
       recording: false,
@@ -117,15 +117,15 @@ export default {
         const f32 = Math.max(-1, Math.min(1, pcm16kf32[i]));
         pcm16ki16[i] = f32 < 0 ? f32 * 0x8000 : f32 * 0x7FFF;
       }
-      console.log("pcm16ki16:", pcm16ki16);
+      // console.log("pcm16ki16:", pcm16ki16);
       return pcm16ki16;
     },
 
     // 将音频数据发送到 WebSocket 服务器
     sendAudioData(audioData) {
       if (this.wsConnection.readyState === 1) {
-        console.log("send data:", audioData);
-        console.log("wsConnection", this.wsConnection);
+        // console.log("send data:", audioData);
+        // console.log("wsConnection", this.wsConnection);
         if (this.wsConnection.readyState === 1) {
           this.wsConnection.send(audioData);
         }
@@ -136,15 +136,23 @@ export default {
     },
 
     handleServerResponse(response) {
-      if (response.status === "ok" && response.signal === "server_ready") {
-        // 开始录音
-        this.startAudioRecording();
+
+      if ("ok" === response.status) {
+        if ("server_ready" === response.signal) {
+          // 开始录音
+          this.startAudioRecording();
+        } else if (response.result) {
+          for (let i = 0; i < response.result.length; i++) {
+            let sentence = response.result[i];
+            this.results.push(sentence.t0 + "--" + sentence.t1 + ":" + sentence.sentence);
+          }
+
+        }
+      } else {
+        console.log("response:", response);
       }
 
-      // 根据服务器的响应更新 UI
-      // if (response.result) {
-      //   this.results.push(response.result);
-      // }
+
     },
     stopRecording() {
       if (this.processor) {

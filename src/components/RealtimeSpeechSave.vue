@@ -3,7 +3,7 @@
   <input type="text" :value="serverUrl" size="60">
   <button @click="startRecording">开始</button>
   <button @click="stopRecording">结束</button>
-  <button @click="getDefaultAudioContextParas">getDefaultAudioContextParas</button>
+  <button @click="getDefaultSampleRate">getDefaultSampleRate</button>
   <div v-for="result in results" :key="result.id">
     {{ result.sentence }}
   </div>
@@ -15,7 +15,7 @@
 
 <script>
 export default {
-  name: "AudioSave",
+  name: "RealtimeSpeechSave",
   data() {
     return {
       //serverUrl: 'ws://192.168.3.7:8090/paddlespeech/asr/streaming',
@@ -27,14 +27,12 @@ export default {
       processor: null,
       source: null,
       stream: null,
-      sampleRate: null,
-      bitsPerSample: 32,
-      channels: 1,
-      audioSamples: [],
+      inputSampleRate: null,
+      outputSampleRate: 16000,
     };
   },
   methods: {
-    getDefaultAudioContextParas() {
+    getDefaultSampleRate() {
       // 创建一个新的 AudioContext 实例
       let audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -52,18 +50,10 @@ export default {
       this.wsConnection.onopen = () => {
         // 发送开始信号
         this.startName = Date.now();
-        if (!this.sampleRate) {
-          let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          this.sampleRate = audioContext.sampleRate;
-        }
-
         this.wsConnection.send(JSON.stringify({
           "name": this.startName + ".wav",
-          "sampleRate": this.sampleRate,
-          "bitsPerSample": this.bitsPerSample,
           "signal": "start",
-          "nbest": 1,
-
+          "nbest": 1
         }));
       };
 
@@ -81,27 +71,54 @@ export default {
     },
 
     startAudioRecording() {
-      let audioSamples = [];
       navigator.mediaDevices.getUserMedia({audio: true})
         .then(stream => {
+          // 使用原始音频流的采样率创建 AudioContext
           let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          this.inputSampleRate = audioContext.sampleRate;
           this.source = audioContext.createMediaStreamSource(stream);
           this.stream = stream;
-          this.processor = audioContext.createScriptProcessor(4096, this.channels, this.channels);
 
+          // 创建 ScriptProcessorNode 用于处理音频数据
+          this.processor = audioContext.createScriptProcessor(4096, 1, 1);
           this.source.connect(this.processor);
           this.processor.connect(audioContext.destination);
 
           this.processor.onaudioprocess = (e) => {
-            let inputData = e.inputBuffer.getChannelData(0);
-            // 处理 inputData 并实时发送
-            // this.sendAudioData(inputData);
-            this.audioSamples = this.audioSamples.concat(Array.from(inputData));
+            // 获取输入缓冲区的音频数据
+            this.sendAudioData(this.processAudioBuffer(e.inputBuffer))
           };
         })
         .catch(error => {
           console.error('Error accessing audio devices:', error);
         });
+    },
+
+    processAudioBuffer(audioBuffer) {
+      // console.log("audioBuffer", audioBuffer);
+      //假设 AudioBuffer 是单声道
+      const rawData = audioBuffer.getChannelData(0);
+      // console.log("rawData:", rawData);
+      //修改频率
+      const compression = parseInt(this.inputSampleRate / this.outputSampleRate);
+      const length = rawData.length / compression;
+      const pcm16kf32 = new Float32Array(length);
+      let index = 0, j = 0;
+      while (index < length) {
+        pcm16kf32[index] = rawData[j];
+        j += compression;
+        index++;
+      }
+      // console.log(pcm16kf32);
+      // 修改位深度
+      let pcm16ki16 = new Int16Array(length);
+
+      for (let i = 0; i < length; i++) {
+        const f32 = Math.max(-1, Math.min(1, pcm16kf32[i]));
+        pcm16ki16[i] = f32 < 0 ? f32 * 0x8000 : f32 * 0x7FFF;
+      }
+      console.log("pcm16ki16:", pcm16ki16);
+      return pcm16ki16;
     },
 
     // 将音频数据发送到 WebSocket 服务器
@@ -154,49 +171,7 @@ export default {
         this.wsConnection.close();
         this.wsConnection = null;
       }
-    },
-
-    floatTo16BitPCM(output, offset, input) {
-      for (let i = 0; i < input.length; i++, offset += 2) {
-        let s = Math.max(-1, Math.min(1, input[i]));
-        output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      }
-    },
-    writeWAV(audioSamples, sampleRate) {
-      let numSamples = audioSamples.length;
-      let buffer = new ArrayBuffer(44 + numSamples * 2); // 16-bit PCM
-      let view = new DataView(buffer);
-
-      writeWAVHeader(view, sampleRate, numSamples, 1, 16); // Mono channel, 16-bit samples
-
-      // Convert and write audio samples...
-      floatTo16BitPCM(view, 44, audioSamples);
-
-      return buffer;
-    },
-
-
-    writeWAVHeader(view, sampleRate, numSamples, numChannels, bitsPerSample) {
-      // RIFF header
-      view.setUint32(0, 0x52494646, false); // "RIFF"
-      view.setUint32(4, 36 + numSamples * numChannels * bitsPerSample / 8, true); // File size
-      view.setUint32(8, 0x57415645, false); // "WAVE"
-
-      // fmt subchunk
-      view.setUint32(12, 0x666D7420, false); // "fmt "
-      view.setUint32(16, 16, true); // Subchunk1 size (16 for PCM)
-      view.setUint16(20, 1, true); // Audio format (1 for PCM)
-      view.setUint16(22, numChannels, true); // Num channels
-      view.setUint32(24, sampleRate, true); // Sample rate
-      view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true); // Byte rate
-      view.setUint16(32, numChannels * bitsPerSample / 8, true); // Block align
-      view.setUint16(34, bitsPerSample, true); // Bits per sample
-
-      // data subchunk
-      view.setUint32(36, 0x64617461, false); // "data"
-      view.setUint32(40, numSamples * numChannels * bitsPerSample / 8, true); // Subchunk2 size
-    },
-
+    }
   }
 }
 </script>
