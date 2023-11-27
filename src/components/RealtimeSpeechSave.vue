@@ -13,9 +13,6 @@
   <div v-for="result in results" :key="result.id">
     {{ result.sentence }}
   </div>
-
-  <br/>
-
 </div>
 </template>
 
@@ -32,11 +29,6 @@ export default {
       wsConnection: null,
       recording: false,
       results: [],
-      processor: null,
-      source: null,
-      stream: null,
-      inputSampleRate: null,
-      outputSampleRate: 16000,
       recorder: null,
       audioBlob: null,
       drawRecordId: null,
@@ -92,6 +84,7 @@ export default {
       try {
         // await this.recorder.getPermission();
         await this.recorder.start();
+        this.recording=true;
         this.drawRecord();
         let that = this;
         this.recorder.onprogress = function (params) {
@@ -109,12 +102,14 @@ export default {
     pauseRecording() {
       if (this.recorder) {
         this.recorder.pause();
+        this.recording=false;
       }
     },
 
     resumeRecording() {
       if (this.recorder) {
         this.recorder.resume();
+        this.recording=true;
       }
     },
 
@@ -149,11 +144,10 @@ export default {
       // // 列出dataView对象原型上的所有方法
       // const methods = Object.getOwnPropertyNames(proto).filter(prop => typeof proto[prop] === 'function');
       // console.log(methods);
-
-
     },
 
     async stopRecording() {
+      this.recording=false
       if (this.recorder) {
         await this.recorder.stop();
         this.audioBlob = await this.recorder.getWAVBlob();
