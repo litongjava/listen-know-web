@@ -1,9 +1,14 @@
 <template>
 <div>
-  <input type="text" :value="serverUrl" size="60">
-  <button @click="startRecording">开始</button>
-  <button @click="stopRecording">结束</button>
+  <label>
+    <input type="text" :value="serverUrl" size="60"/>
+  </label>
+  <button @click="startRecording">Start</button>
+  <button @click="pauseRecording">Pause</button>
+  <button @click="resumeRecording">Resume</button>
+  <button @click="stopRecording">Stop</button>
   <button @click="getDefaultSampleRate">getDefaultSampleRate</button>
+  <label>recording:</label><span>{{recording}}</span>
   <div v-for="result in results" :key="result.id">
     {{ result }}
   </div>
@@ -83,10 +88,13 @@ export default {
           this.processor = audioContext.createScriptProcessor(4096, 1, 1);
           this.source.connect(this.processor);
           this.processor.connect(audioContext.destination);
-
+          this.recording = true;
           this.processor.onaudioprocess = (e) => {
             // 获取输入缓冲区的音频数据
-            this.sendAudioData(this.processAudioBuffer(e.inputBuffer))
+            if (this.recording) {
+              this.sendAudioData(this.processAudioBuffer(e.inputBuffer))
+            }
+
           };
         })
         .catch(error => {
@@ -148,13 +156,29 @@ export default {
           }
 
         }
+      } else if ("end" === response.signal) {
+        for (let i = 0; i < response.result.length; i++) {
+          let sentence = response.result[i];
+          this.results.push(sentence.t0 + "--" + sentence.t1 + ":" + sentence.sentence);
+        }
+        // 关闭 WebSocket 连接
+        this.wsConnection.close();
+        this.wsConnection = null;
       } else {
         console.log("response:", response);
       }
 
 
     },
+    pauseRecording() {
+      this.recording = false;
+    },
+    resumeRecording() {
+      this.recording = true;
+    },
+
     stopRecording() {
+      this.recording = false;
       if (this.processor) {
         this.processor.disconnect();
         this.processor = null;
@@ -174,10 +198,6 @@ export default {
           "signal": "end",
           "nbest": 1
         }));
-
-        // 关闭 WebSocket 连接
-        this.wsConnection.close();
-        this.wsConnection = null;
       }
     }
   }
