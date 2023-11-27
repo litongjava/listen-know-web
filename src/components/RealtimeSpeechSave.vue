@@ -3,7 +3,13 @@
   <input type="text" :value="serverUrl" size="60">
   <button @click="startRecording">开始</button>
   <button @click="stopRecording">结束</button>
+  <input type="button" value="继续" @click="resumeRecording"/>
+  <input type="button" value="播放" @click="playRecording"/>
+  <input type="button" value="保存" @click="saveRecording"/>
   <button @click="getDefaultSampleRate">getDefaultSampleRate</button>
+  <br/>
+  <audio ref="audio" controls></audio>
+  <canvas id="recordCanvas" ref="record" style="border: 1px solid gray"></canvas>
   <div v-for="result in results" :key="result.id">
     {{ result.sentence }}
   </div>
@@ -14,6 +20,8 @@
 </template>
 
 <script>
+import Recorder from 'js-audio-recorder';
+
 export default {
   name: "RealtimeSpeechSave",
   data() {
@@ -29,6 +37,9 @@ export default {
       stream: null,
       inputSampleRate: null,
       outputSampleRate: 16000,
+      recorder: null,
+      audioBlob: null,
+      drawRecordId: null,
     };
   },
   methods: {
@@ -70,95 +81,86 @@ export default {
       };
     },
 
-    startAudioRecording() {
-      navigator.mediaDevices.getUserMedia({audio: true})
-        .then(stream => {
-          // 使用原始音频流的采样率创建 AudioContext
-          let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          this.inputSampleRate = audioContext.sampleRate;
-          this.source = audioContext.createMediaStreamSource(stream);
-          this.stream = stream;
+    async startAudioRecording() {
+      this.recorder = new Recorder({
+        sampleBits: 16,
+        sampleRate: 16000,
+        numChannels: 1,
+        compiling: true
+      });
 
-          // 创建 ScriptProcessorNode 用于处理音频数据
-          this.processor = audioContext.createScriptProcessor(4096, 1, 1);
-          this.source.connect(this.processor);
-          this.processor.connect(audioContext.destination);
-
-          this.processor.onaudioprocess = (e) => {
-            // 获取输入缓冲区的音频数据
-            this.sendAudioData(this.processAudioBuffer(e.inputBuffer))
-          };
-        })
-        .catch(error => {
-          console.error('Error accessing audio devices:', error);
-        });
+      try {
+        // await this.recorder.getPermission();
+        await this.recorder.start();
+        this.drawRecord();
+        let that = this;
+        this.recorder.onprogress = function (params) {
+          // console.log('录音时长(秒)', params.duration);
+          // console.log('录音大小(字节)', params.fileSize);
+          // console.log('录音音量百分比(%)', params.vol);
+          // console.log('当前录音的总数据([DataView, DataView...])', params.data);
+          that.sendAudioData(that.recorder.getNextData());
+        }
+      } catch (error) {
+        console.error('录音启动失败:', error);
+      }
     },
 
-    processAudioBuffer(audioBuffer) {
-      // console.log("audioBuffer", audioBuffer);
-      //假设 AudioBuffer 是单声道
-      const rawData = audioBuffer.getChannelData(0);
-      // console.log("rawData:", rawData);
-      //修改频率
-      const compression = parseInt(this.inputSampleRate / this.outputSampleRate);
-      const length = rawData.length / compression;
-      const pcm16kf32 = new Float32Array(length);
-      let index = 0, j = 0;
-      while (index < length) {
-        pcm16kf32[index] = rawData[j];
-        j += compression;
-        index++;
+    pauseRecording() {
+      if (this.recorder) {
+        this.recorder.pause();
       }
-      // console.log(pcm16kf32);
-      // 修改位深度
-      let pcm16ki16 = new Int16Array(length);
-
-      for (let i = 0; i < length; i++) {
-        const f32 = Math.max(-1, Math.min(1, pcm16kf32[i]));
-        pcm16ki16[i] = f32 < 0 ? f32 * 0x8000 : f32 * 0x7FFF;
-      }
-      console.log("pcm16ki16:", pcm16ki16);
-      return pcm16ki16;
     },
+
+    resumeRecording() {
+      if (this.recorder) {
+        this.recorder.resume();
+      }
+    },
+
 
     // 将音频数据发送到 WebSocket 服务器
-    sendAudioData(audioData) {
+    sendAudioData(dataViewArray) {
+      let length = dataViewArray.length;
       if (this.wsConnection.readyState === 1) {
-        console.log("send data:", audioData);
-        console.log("wsConnection", this.wsConnection);
-        if (this.wsConnection.readyState === 1) {
-          this.wsConnection.send(audioData);
+        for (let i = 0; i < length; i++) {
+          console.log("send data:", dataViewArray[i]);
+          console.log("wsConnection", this.wsConnection);
+          if (this.wsConnection.readyState === 1) {
+            this.wsConnection.send(dataViewArray[i]);
+          }
         }
       } else {
         console.log("websocket not opened")
       }
+      // console.log("length",);
+      // console.log("buffer", dataView[0].buffer);
+      // console.log("length", dataView[0].buffer.size);
+      // console.log(dataView);
+      // console.log(typeof dataView); // 输出dataView的数据类型
+      //
+      // // 获取dataView对象原型上的所有属性和方法
+      // const proto = Object.getPrototypeOf(dataView);
+      // console.log(proto);
+      //
+      // // 或者获取dataView对象的构造函数的名称
+      // console.log(dataView.constructor.name);
+      //
+      // // 列出dataView对象原型上的所有方法
+      // const methods = Object.getOwnPropertyNames(proto).filter(prop => typeof proto[prop] === 'function');
+      // console.log(methods);
+
 
     },
 
-    handleServerResponse(response) {
-      if (response.status === "ok" && response.signal === "server_ready") {
-        // 开始录音
-        this.startAudioRecording();
+    async stopRecording() {
+      if (this.recorder) {
+        await this.recorder.stop();
+        this.audioBlob = await this.recorder.getWAVBlob();
+        this.drawRecordId && cancelAnimationFrame(this.drawRecordId);
+        this.drawRecordId = null;
       }
 
-      // 根据服务器的响应更新 UI
-      // if (response.result) {
-      //   this.results.push(response.result);
-      // }
-    },
-    stopRecording() {
-      if (this.processor) {
-        this.processor.disconnect();
-        this.processor = null;
-      }
-      if (this.source) {
-        this.source.disconnect();
-        this.source = null;
-      }
-      if (this.stream) {
-        this.stream.getTracks().forEach(track => track.stop());
-        this.stream = null;
-      }
       if (this.wsConnection.readyState === 1) {
         // 发送结束信号到 WebSocket 服务器
         this.wsConnection.send(JSON.stringify({
@@ -166,12 +168,81 @@ export default {
           "signal": "end",
           "nbest": 1
         }));
+      }
+    },
+    playRecording() {
+      if (this.audioBlob) {
+        this.$refs.audio.src = URL.createObjectURL(this.audioBlob);
+        this.$refs.audio.play();
+        this.drawPlay();
+      }
+    },
+    saveRecording() {
+      if (this.audioBlob) {
+        const a = document.createElement("a");
+        document.body.appendChild(a);
+        const url = URL.createObjectURL(this.audioBlob);
+        a.href = url;
+        a.download = 'recording.wav';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    },
+    drawRecord() {
+      this.drawRecordId = requestAnimationFrame(this.drawRecord);
+      this.drawWave({
+        canvas: this.$refs.record,
+        dataArray: this.recorder.getRecordAnalyseData(),
+      });
+    },
+    drawWave({canvas, dataArray}) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // 清除画布
 
+      // 设置绘制属性
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#409EFF';
+      ctx.beginPath();
+
+      const sliceWidth = canvas.width / dataArray.length; // 每个数据点的宽度
+      let x = 0; // 当前绘制位置的 x 坐标
+
+      for (let i = 0; i < dataArray.length; i++) {
+        // 将数据点转换为 y 轴上的位置
+        const v = dataArray[i] / 128.0;
+        const y = v * canvas.height / 2;
+
+        if (i === 0) {
+          // 移动到第一个点
+          ctx.moveTo(x, y);
+        } else {
+          // 连接到下一个点
+          ctx.lineTo(x, y);
+        }
+
+        x += sliceWidth; // 移动到下一个数据点的位置
+      }
+
+      ctx.lineTo(canvas.width, canvas.height / 2); // 绘制到最后一个点
+      ctx.stroke(); // 完成波形绘制
+    },
+    handleServerResponse(response) {
+      if ("ok" === response.status) {
+        if ("server_ready" === response.signal) {
+          // 开始录音
+          this.startAudioRecording();
+        } else if (response.result) {
+
+        }
+      } else if ("end" === response.signal) {
         // 关闭 WebSocket 连接
         this.wsConnection.close();
         this.wsConnection = null;
+      } else {
+        console.log("response:", response);
       }
-    }
+    },
+
   }
 }
 </script>

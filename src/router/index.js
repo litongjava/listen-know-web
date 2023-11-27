@@ -36,9 +36,9 @@ const routes = [
     component:()=>import('../views/RecorderView.vue')
   },
   {
-    path:"/RecorderJSTest",
-    name:"RecorderJSTest",
-    component:()=>import('../views/RecorderJSTestView.vue')
+    path:"/JSAudioRecorderTest",
+    name:"JSAudioRecorderTest",
+    component:()=>import('../views/JSAudioRecorderTestView.vue')
   }
 
 

@@ -19,7 +19,7 @@
 import Recorder from 'js-audio-recorder';
 
 export default {
-  name: "RecorderJSTestView",
+  name: "JSAudioRecorderTestView",
   data() {
     return {
       recorder: null,
