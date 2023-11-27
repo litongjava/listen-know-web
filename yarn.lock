@@ -5335,6 +5335,11 @@ joi@^17.4.0:
     "@sideway/formula" "^3.0.1"
     "@sideway/pinpoint" "^2.0.0"
 
+js-audio-recorder@0.5.7:
+  version "0.5.7"
+  resolved "https://registry.yarnpkg.com/js-audio-recorder/-/js-audio-recorder-0.5.7.tgz#0c9b6373c1ef59c362d9f4501226f3cc87e20710"
+  integrity sha512-DIlv30N86AYHr7zGHN0O7V/3Rd8Q6SIJ/MBzVJaT9STWTdhF4E/8fxCX6ZMgRSv8xmx6fEqcFFNPoofmxJD4+A==
+
 js-beautify@^1.6.12:
   version "1.14.11"
   resolved "https://registry.yarnpkg.com/js-beautify/-/js-beautify-1.14.11.tgz#57b17e009549ac845bdc58eddf8e1862e311314e"

@@ -13,7 +13,7 @@
     |
     <router-link to="/Recorder">Recorder</router-link>
     |
-    <router-link to="/RecorderJSTest">RecorderJSTest</router-link>
+    <router-link to="/JSAudioRecorderTest">JSAudioRecorderTest</router-link>
   </nav>
   <router-view/>
 </div>
