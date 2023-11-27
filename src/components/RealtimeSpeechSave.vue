@@ -24,7 +24,7 @@ export default {
   data() {
     return {
       //serverUrl: 'ws://192.168.3.7:8090/paddlespeech/asr/streaming',
-      serverUrl: 'ws://192.168.3.7:8090/paddlespeech/streaming/save',
+      serverUrl: 'ws://127.0.0.1:8090/paddlespeech/streaming/save',
       startName: null,
       wsConnection: null,
       recording: false,
