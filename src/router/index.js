@@ -30,6 +30,11 @@ const routes = [
     name: "AudioSave",
     component: () => import('../views/AudioSaveView.vue')
   },
+  {
+    path:"/Recorder",
+    name:"Recorder",
+    component:()=>import('../views/RecorderView.vue')
+  }
 ];
 
 const router = new VueRouter({

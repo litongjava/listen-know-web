@@ -30,6 +30,7 @@ export default {
       sampleRate: null,
       bitsPerSample: 32,
       channels: 1,
+      audioSamples: [],
     };
   },
   methods: {
@@ -80,6 +81,7 @@ export default {
     },
 
     startAudioRecording() {
+      let audioSamples = [];
       navigator.mediaDevices.getUserMedia({audio: true})
         .then(stream => {
           let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -93,7 +95,8 @@ export default {
           this.processor.onaudioprocess = (e) => {
             let inputData = e.inputBuffer.getChannelData(0);
             // 处理 inputData 并实时发送
-            this.sendAudioData(inputData);
+            // this.sendAudioData(inputData);
+            this.audioSamples = this.audioSamples.concat(Array.from(inputData));
           };
         })
         .catch(error => {
@@ -151,7 +154,49 @@ export default {
         this.wsConnection.close();
         this.wsConnection = null;
       }
-    }
+    },
+
+    floatTo16BitPCM(output, offset, input) {
+      for (let i = 0; i < input.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, input[i]));
+        output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+    },
+    writeWAV(audioSamples, sampleRate) {
+      let numSamples = audioSamples.length;
+      let buffer = new ArrayBuffer(44 + numSamples * 2); // 16-bit PCM
+      let view = new DataView(buffer);
+
+      writeWAVHeader(view, sampleRate, numSamples, 1, 16); // Mono channel, 16-bit samples
+
+      // Convert and write audio samples...
+      floatTo16BitPCM(view, 44, audioSamples);
+
+      return buffer;
+    },
+
+
+    writeWAVHeader(view, sampleRate, numSamples, numChannels, bitsPerSample) {
+      // RIFF header
+      view.setUint32(0, 0x52494646, false); // "RIFF"
+      view.setUint32(4, 36 + numSamples * numChannels * bitsPerSample / 8, true); // File size
+      view.setUint32(8, 0x57415645, false); // "WAVE"
+
+      // fmt subchunk
+      view.setUint32(12, 0x666D7420, false); // "fmt "
+      view.setUint32(16, 16, true); // Subchunk1 size (16 for PCM)
+      view.setUint16(20, 1, true); // Audio format (1 for PCM)
+      view.setUint16(22, numChannels, true); // Num channels
+      view.setUint32(24, sampleRate, true); // Sample rate
+      view.setUint32(28, sampleRate * numChannels * bitsPerSample / 8, true); // Byte rate
+      view.setUint16(32, numChannels * bitsPerSample / 8, true); // Block align
+      view.setUint16(34, bitsPerSample, true); // Bits per sample
+
+      // data subchunk
+      view.setUint32(36, 0x64617461, false); // "data"
+      view.setUint32(40, numSamples * numChannels * bitsPerSample / 8, true); // Subchunk2 size
+    },
+
   }
 }
 </script>
