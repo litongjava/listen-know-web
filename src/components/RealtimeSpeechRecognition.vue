@@ -6,6 +6,7 @@
   <button @click="startRecording">Start</button>
   <button @click="pauseRecording">Pause</button>
   <button @click="resumeRecording">Resume</button>
+  <button @click="recognizeRecording">Recognize</button>
   <button @click="stopRecording">Stop</button>
   <button @click="getDefaultSampleRate">getDefaultSampleRate</button>
   <label>recording:</label><span>{{recording}}</span>
@@ -175,6 +176,15 @@ export default {
     },
     resumeRecording() {
       this.recording = true;
+    },
+    recognizeRecording() {
+      if (this.wsConnection.readyState === 1) {
+        // 发送结束信号到 WebSocket 服务器
+        this.wsConnection.send(JSON.stringify({
+          "name": this.startName + ".wav",
+          "signal": "recognize",
+        }));
+      }
     },
 
     stopRecording() {
