@@ -34,7 +34,14 @@ const routes = [
     path:"/Recorder",
     name:"Recorder",
     component:()=>import('../views/RecorderView.vue')
+  },
+  {
+    path:"/RecorderJSTest",
+    name:"RecorderJSTest",
+    component:()=>import('../views/RecorderJSTestView.vue')
   }
+
+
 ];
 
 const router = new VueRouter({

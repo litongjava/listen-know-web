@@ -12,6 +12,8 @@
     <router-link to="/RealtimeSpeechSave">RealtimeSpeechSave</router-link>
     |
     <router-link to="/Recorder">Recorder</router-link>
+    |
+    <router-link to="/RecorderJSTest">RecorderJSTest</router-link>
   </nav>
   <router-view/>
 </div>
