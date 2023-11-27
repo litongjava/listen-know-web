@@ -27,6 +27,8 @@ export default {
       processor: null,
       source: null,
       stream: null,
+      inputSampleRate: null,
+      outputSampleRate: 16000,
     };
   },
   methods: {
@@ -73,6 +75,7 @@ export default {
         .then(stream => {
           // 使用原始音频流的采样率创建 AudioContext
           let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          this.inputSampleRate = audioContext.sampleRate;
           this.source = audioContext.createMediaStreamSource(stream);
           this.stream = stream;
 
@@ -83,20 +86,7 @@ export default {
 
           this.processor.onaudioprocess = (e) => {
             // 获取输入缓冲区的音频数据
-            let inputBuffer = e.inputBuffer;
-
-            // 使用 OfflineAudioContext 以 16kHz 重采样音频
-            let offlineContext = new OfflineAudioContext(1, inputBuffer.length, 16000);
-            let bufferSource = offlineContext.createBufferSource();
-            bufferSource.buffer = inputBuffer;
-
-            bufferSource.connect(offlineContext.destination);
-            bufferSource.start(0);
-
-            offlineContext.startRendering().then(renderedBuffer => {
-              // 将 AudioBuffer 转换为 PCM 字节数据
-              this.sendAudioData(this.audioBufferToPCMBytes(renderedBuffer));
-            });
+            this.sendAudioData(this.processAudioBuffer(e.inputBuffer))
           };
         })
         .catch(error => {
@@ -104,19 +94,33 @@ export default {
         });
     },
 
-    audioBufferToPCMBytes(audioBuffer) {
-      // 假设 AudioBuffer 是单声道
+    processAudioBuffer(audioBuffer) {
+      // console.log("audioBuffer", audioBuffer);
+      //假设 AudioBuffer 是单声道
       const rawData = audioBuffer.getChannelData(0);
-      const buffer = new ArrayBuffer(rawData.length * 2); // 每个样本 2 个字节
-      const view = new DataView(buffer);
-
-      for (let i = 0; i < rawData.length; i++) {
-        const s = Math.max(-1, Math.min(1, rawData[i])); // 确保 -1 <= s <= 1
-        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      // console.log("rawData:", rawData);
+      //修改频率
+      const compression = parseInt(this.inputSampleRate / this.outputSampleRate);
+      const length = rawData.length / compression;
+      const pcm16kf32 = new Float32Array(length);
+      let index = 0, j = 0;
+      while (index < length) {
+        pcm16kf32[index] = rawData[j];
+        j += compression;
+        index++;
       }
+      // console.log(pcm16kf32);
+      // 修改位深度
+      let pcm16ki16 = new Int16Array(length);
 
-      return buffer;
+      for (let i = 0; i < length; i++) {
+        const f32 = Math.max(-1, Math.min(1, pcm16kf32[i]));
+        pcm16ki16[i] = f32 < 0 ? f32 * 0x8000 : f32 * 0x7FFF;
+      }
+      console.log("pcm16ki16:", pcm16ki16);
+      return pcm16ki16;
     },
+
     // 将音频数据发送到 WebSocket 服务器
     sendAudioData(audioData) {
       if (this.wsConnection.readyState === 1) {
