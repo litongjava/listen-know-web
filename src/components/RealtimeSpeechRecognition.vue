@@ -1,5 +1,10 @@
 <template>
 <div>
+  result:
+  <div v-for="result in results" :key="result.id">
+    {{ result }}
+  </div>
+  <br/>
   <label>
     <input type="text" :value="serverUrl" size="60"/>
   </label>
@@ -14,9 +19,6 @@
   <br/>
   <audio ref="audio" controls></audio>
   <canvas id="recordCanvas" ref="record" style="border: 1px solid gray"></canvas>
-  <div v-for="result in results" :key="result.id">
-    {{ result }}
-  </div>
 </div>
 </template>
 
