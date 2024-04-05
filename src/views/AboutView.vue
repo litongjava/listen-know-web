@@ -1,5 +1,5 @@
 <template>
-  <div class="about">
-    <h1>This is an about page</h1>
-  </div>
+<div class="about">
+<p>Author: <a href="https://github.com/litongjava" target="_blank">github.com/litongjava</a></p>
+</div>
 </template>

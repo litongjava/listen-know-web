@@ -1,9 +1,13 @@
 <template>
 <div>
-  <input type="text" :value="serverUrl" size="40">
-  <input type="file" @change="onFileChange"/>
-  <input type="text" :value="audioFormat" size="10">
-  <button @click="uploadFile">上传文件</button>
+  <audio ref="audio" controls></audio>
+  <input type="button" value="录音" @click="startRecording"/>
+  <input type="button" value="暂停" @click="pauseRecording"/>
+  <input type="button" value="继续" @click="resumeRecording"/>
+  <input type="button" value="停止" @click="stopRecording"/>
+  <input type="button" value="连接" @click="linkRecording"/>
+  <input type="button" value="保存" @click="saveRecording"/>
+  <input type="button" value="上传" @click="uploadRecording"/>
   <br/>
   <textarea :value="audio_text" cols="200" rows="80"/>
 

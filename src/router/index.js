@@ -1,24 +1,24 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import HomeView from '../views/HomeView.vue'
+import UploadAudioView from '../views/UploadAudioView.vue'
 
 Vue.use(VueRouter);
 
 const routes = [
   {
     path: '/',
-    name: 'home',
-    component: HomeView
+    name: 'upload-audio',
+    component: UploadAudioView
+  },
+  {
+    path: '/RecordAudio',
+    name: 'RecordAudio',
+    component: () => import(/* webpackChunkName: "about" */ '../views/RecordAudioView.vue')
   },
   {
     path: '/about',
     name: 'about',
     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue')
-  },
-  {
-    path: '/upload-audio',
-    name: 'upload-audio',
-    component: () => import(/* webpackChunkName: "about" */ '../views/UploadAudioView.vue')
   },
   {
     path: "/RealtimeSpeechRecognition",
@@ -31,14 +31,14 @@ const routes = [
     component: () => import('../views/RealtimeSpeechSaveView.vue')
   },
   {
-    path:"/Recorder",
-    name:"Recorder",
-    component:()=>import('../views/RecorderView.vue')
+    path: "/Recorder",
+    name: "Recorder",
+    component: () => import('../views/RecorderView.vue')
   },
   {
-    path:"/JSAudioRecorderTest",
-    name:"JSAudioRecorderTest",
-    component:()=>import('../views/JSAudioRecorderTestView.vue')
+    path: "/JSAudioRecorderTest",
+    name: "JSAudioRecorderTest",
+    component: () => import('../views/JSAudioRecorderTestView.vue')
   }
 
 
